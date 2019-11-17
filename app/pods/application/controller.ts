@@ -78,7 +78,7 @@ export default class ApplicationController extends Controller {
 
   private formats = ["jpeg", "jpg", "gif", "png", "apng", "svg", "bmp", "webp"];
   private isImage(url?: string) {
-    return url && this.formats.some(f => url.endsWith(`.${f}`));
+    return url && this.formats.some(f => url.includes(`.${f}`));
   }
 
   private getHistory(): { [id: string]: number } {
