@@ -69,7 +69,6 @@ export default class ApplicationController extends Controller {
           ),
           TE.map(result => {
             this.links = result.toArray()
-            console.log(this.links);
             return this.links;
           }),
         );
