@@ -1,0 +1,26 @@
+<div class="info">
+  {{#let (now interval=1000) as |now|}}
+    <div class="time">
+      <span class="hour">{{moment-format now "HH:mm"}}</span>
+      <span class="second">{{moment-format now "ss"}}</span>
+    </div>
+    <div class="day">{{moment-format now "dddd"}}</div>
+    <div class="date">{{moment-format now "MMMM D"}}</div>
+  {{/let}}
+</div>
+
+{{#if model}}
+  <div class="horizontal">
+    <div class="vertical">
+      <img
+        alt={{model.title}}
+        src={{model.url}}
+      >
+    </div>
+  </div>
+
+  <div class="attribution">
+    <div class="posted">{{moment-format model.created_utc "MMMM D"}}</div>
+    <div class="title">{{model.title}}</div>
+  </div>
+{{/if}}
