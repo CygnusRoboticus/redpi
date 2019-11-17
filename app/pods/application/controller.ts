@@ -1,35 +1,35 @@
 import Controller from '@ember/controller';
-import { task, TaskStrategy } from 'concurrency-light';
+import { task, TaskStrategy, timeout } from 'concurrency-light';
 import { pipe } from 'fp-ts/lib/pipeable';
 import * as TE from 'fp-ts/lib/TaskEither';
 import Link from 'redpi/pods/link/model';
 
-const oneDay = 1000 * 60 * 60 * 24;
-const twoMinutes = 1000 * 60 * 2;
-const oneWeek = oneDay * 7;
+const minutesToMS = (minutes: number) => 1000 * 64 * minutes;
 
 export default class ApplicationController extends Controller {
+  static queryParams = ['debug', 'debounce', 'searchReset', 'repeatReset']
   model: Link | null = null;
 
   after?: string;
   count = 25;
 
-  debounceTime = twoMinutes;
-  repeatDelay = oneWeek;
   historyStorageKey = 'history'
 
-  get debug() {
-    return window.location.search.includes('debug=');
-  }
+  debug = 0;
+  debounce = 2;
+  searchReset = 60 * 24;
+  repeatReset = 60 * 24 * 7;
 
-  @task({ strategy: TaskStrategy.Restart, debounce: twoMinutes })
+  @task({ strategy: TaskStrategy.Restart })
   *loadNextImage() {
+    yield timeout(minutesToMS(this.debounce));
     this.resetPages();
     yield this.loadImage();
   }
 
-  @task({ strategy: TaskStrategy.Drop, debounce: oneDay })
+  @task({ strategy: TaskStrategy.Drop })
   *resetPages() {
+    yield timeout(minutesToMS(this.searchReset));
     this.after = undefined;
   }
 
@@ -48,7 +48,7 @@ export default class ApplicationController extends Controller {
     ),
     TE.map(links => {
       const history = this.getHistory();
-      const repeatTime = Date.now() - this.repeatDelay;
+      const repeatTime = Date.now() - minutesToMS(this.repeatReset);
       const usable = links.toArray().find(link => this.isImage(link.url) && !history[link.id] || history[link.id] < repeatTime);
       if (usable) {
         this.model = usable;
@@ -74,14 +74,14 @@ export default class ApplicationController extends Controller {
   private setHistoryTime(id: string) {
     const history = this.getHistory();
     const now = Date.now();
-    const repeatTime = now - this.repeatDelay;
+    const repeatTime = now - minutesToMS(this.repeatReset);
     history[id] = now;
     Object.entries(history).forEach(([historyId, time]) => {
       if (time < repeatTime) {
         delete history[historyId];
       }
     });
-    console.log('Set history: ', history);
+    console.log('History: ', history);
     window.localStorage.setItem(this.historyStorageKey, JSON.stringify(history));
   }
 }
