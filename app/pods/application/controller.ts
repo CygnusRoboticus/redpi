@@ -1,4 +1,5 @@
 import Controller from '@ember/controller';
+import { htmlSafe } from '@ember/string';
 import { task, TaskStrategy, timeout } from 'concurrency-light';
 import { pipe } from 'fp-ts/lib/pipeable';
 import * as TE from 'fp-ts/lib/TaskEither';
@@ -12,6 +13,8 @@ export default class ApplicationController extends Controller {
 
   after?: string;
   count = 25;
+  progress = 0;
+  progressStyle = htmlSafe("width: 0%");
 
   historyStorageKey = 'history'
 
@@ -31,6 +34,17 @@ export default class ApplicationController extends Controller {
   *resetPages() {
     yield timeout(minutesToMS(this.searchReset));
     this.after = undefined;
+  }
+
+  @task({ strategy: TaskStrategy.Restart })
+  *updateProgress(reset = false) {
+    const progress = reset ? 0 : this.progress + (100 / (this.debounce * 60));
+    this.setProperties({
+      progress,
+      progressStyle: htmlSafe(`width: ${progress}%`)
+    });
+    yield timeout(1000);
+    this.updateProgress();
   }
 
   clearHistory() {
@@ -54,6 +68,7 @@ export default class ApplicationController extends Controller {
         this.model = usable;
         this.setHistoryTime(usable.id);
         this.loadNextImage();
+        this.updateProgress(true);
       } else {
         this.after = links.toArray().slice(-1)[0].id;
         this.loadImage();
