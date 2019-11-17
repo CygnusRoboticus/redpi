@@ -2,14 +2,17 @@ import Controller from '@ember/controller';
 import { htmlSafe } from '@ember/string';
 import { task, TaskStrategy, timeout } from 'concurrency-light';
 import { pipe } from 'fp-ts/lib/pipeable';
+import * as TA from 'fp-ts/lib/Task';
 import * as TE from 'fp-ts/lib/TaskEither';
 import Link from 'redpi/pods/link/model';
 
 const minutesToMS = (minutes: number) => 1000 * 64 * minutes;
+const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 export default class ApplicationController extends Controller {
-  static queryParams = ['debug', 'debounce', 'searchReset', 'repeatReset']
+  static queryParams = ['debug', 'debounce', 'searchReset', 'repeatRandom']
   model: Link | null = null;
+  links: Link[] | null = null;
 
   after?: string;
   count = 25;
@@ -21,7 +24,7 @@ export default class ApplicationController extends Controller {
   debug = 0;
   debounce = 2;
   searchReset = 60 * 24;
-  repeatReset = 60 * 24 * 7;
+  repeatRandom = 60 * 24 * 7;
 
   @task({ strategy: TaskStrategy.Restart })
   *loadNextImage() {
@@ -52,26 +55,38 @@ export default class ApplicationController extends Controller {
   }
 
   loadImage = pipe(
-    TE.tryCatch(
-      () => this.store.query('link', {
-        sort: 'top',
-        count: this.count,
-        after: this.after,
-      }),
-      () => new Error("Failed to retrieve links")
-    ),
+    TE.rightIO(() => {
+      return this.links
+        ? TE.right(this.links)
+        : pipe(
+          TE.tryCatch(
+            () => this.store.query('link', {
+              sort: 'top',
+              count: this.count,
+              after: this.after,
+            }),
+            () => new Error("Failed to retrieve links")
+          ),
+          TE.map(result => {
+            this.links = result.toArray()
+            console.log(this.links);
+            return this.links;
+          }),
+        );
+    }),
+    TE.chain(task => task),
     TE.map(links => {
       const history = this.getHistory();
-      const repeatTime = Date.now() - minutesToMS(this.repeatReset);
-      const usable = links.toArray().find(link => this.isImage(link.url) && !history[link.id] || history[link.id] < repeatTime);
+      const usable = links.toArray().find(link => this.isImage(link.url) && !history[link.id]);
       if (usable) {
         this.model = usable;
         this.setHistoryTime(usable.id);
         this.loadNextImage();
         this.updateProgress(true);
       } else {
-        this.after = links.toArray().slice(-1)[0].id;
-        this.loadImage();
+        this.after = links.slice(-1)[0].id;
+        this.links = null;
+        TA.delay(1000)(TA.fromIO(() => this.loadImage()))();
       }
     }),
   );
@@ -89,10 +104,10 @@ export default class ApplicationController extends Controller {
   private setHistoryTime(id: string) {
     const history = this.getHistory();
     const now = Date.now();
-    const repeatTime = now - minutesToMS(this.repeatReset);
-    history[id] = now;
+    const repeatTime = now + rand(0, minutesToMS(this.repeatRandom));
+    history[id] = repeatTime;
     Object.entries(history).forEach(([historyId, time]) => {
-      if (time < repeatTime) {
+      if (time < now) {
         delete history[historyId];
       }
     });
