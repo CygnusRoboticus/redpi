@@ -83,7 +83,11 @@ export default class ApplicationController extends Controller {
         this.loadNextImage();
         this.updateProgress(true);
       } else {
-        this.after = links.slice(-1)[0].id;
+        if (links.length) {
+          this.after = links.slice(-1)[0].id;
+        } else {
+          this.resetPages();
+        }
         this.links = null;
         TA.delay(1000)(TA.fromIO(() => this.loadImage()))();
       }
