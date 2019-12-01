@@ -7,19 +7,20 @@ import * as TE from 'fp-ts/lib/TaskEither';
 import Link from 'redpi/pods/link/model';
 
 const minutesToMS = (minutes: number) => 1000 * 64 * minutes;
-const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+const rand = (min: number, max: number) =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
 
 export default class ApplicationController extends Controller {
-  static queryParams = ['debug', 'debounce', 'searchReset', 'repeatRandom']
+  static queryParams = ['debug', 'debounce', 'searchReset', 'repeatRandom'];
   model: Link | null = null;
   links: Link[] | null = null;
 
   after?: string;
   count = 25;
   progress = 0;
-  progressStyle = htmlSafe("width: 0%");
+  progressStyle = htmlSafe('width: 0%');
 
-  historyStorageKey = 'history'
+  historyStorageKey = 'history';
 
   debug = 0;
   debounce = 2;
@@ -41,7 +42,7 @@ export default class ApplicationController extends Controller {
 
   @task({ strategy: TaskStrategy.Restart })
   *updateProgress(reset = false) {
-    const progress = reset ? 0 : this.progress + (100 / (this.debounce * 60));
+    const progress = reset ? 0 : this.progress + 100 / (this.debounce * 60);
     this.setProperties({
       progress,
       progressStyle: htmlSafe(`width: ${progress}%`)
@@ -59,24 +60,27 @@ export default class ApplicationController extends Controller {
       return this.links
         ? TE.right(this.links)
         : pipe(
-          TE.tryCatch(
-            () => this.store.query('link', {
-              sort: 'top',
-              count: this.count,
-              after: this.after,
-            }),
-            () => new Error("Failed to retrieve links")
-          ),
-          TE.map(result => {
-            this.links = result.toArray()
-            return this.links;
-          }),
-        );
+            TE.tryCatch(
+              () =>
+                this.store.query('link', {
+                  sort: 'top',
+                  count: this.count,
+                  after: this.after
+                }),
+              () => new Error('Failed to retrieve links')
+            ),
+            TE.map(result => {
+              this.links = result.toArray();
+              return this.links;
+            })
+          );
     }),
     TE.chain(task => task),
     TE.map(links => {
       const history = this.getHistory();
-      const usable = links.toArray().find(link => this.isImage(link.url) && !history[link.id]);
+      const usable = links
+        .toArray()
+        .find(link => this.isImage(link.url) && !history[link.id]);
       if (usable) {
         this.model = usable;
         this.setHistoryTime(usable.id);
@@ -91,10 +95,10 @@ export default class ApplicationController extends Controller {
         this.links = null;
         TA.delay(1000)(TA.fromIO(() => this.loadImage()))();
       }
-    }),
+    })
   );
 
-  private formats = ["jpeg", "jpg", "gif", "png", "apng", "svg", "bmp", "webp"];
+  private formats = ['jpeg', 'jpg', 'gif', 'png', 'apng', 'svg', 'bmp', 'webp'];
   private isImage(url?: string) {
     return url && this.formats.some(f => url.includes(`.${f}`));
   }
@@ -115,13 +119,16 @@ export default class ApplicationController extends Controller {
       }
     });
     console.log('History: ', history);
-    window.localStorage.setItem(this.historyStorageKey, JSON.stringify(history));
+    window.localStorage.setItem(
+      this.historyStorageKey,
+      JSON.stringify(history)
+    );
   }
 }
 
 // DO NOT DELETE: this is how TypeScript knows how to look up your controllers.
 declare module '@ember/controller' {
   interface Registry {
-    'application': ApplicationController;
+    application: ApplicationController;
   }
 }

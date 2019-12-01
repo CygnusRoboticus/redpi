@@ -21,20 +21,10 @@
     "module": "es6",
     "experimentalDecorators": true,
     "paths": {
-      "redpi/tests/*": [
-        "tests/*"
-      ],
-      "redpi/*": [
-        "app/*"
-      ],
-      "*": [
-        "types/*"
-      ]
+      "redpi/tests/*": ["tests/*"],
+      "redpi/*": ["app/*"],
+      "*": ["types/*"]
     }
   },
-  "include": [
-    "app/**/*",
-    "tests/**/*",
-    "types/**/*"
-  ]
+  "include": ["app/**/*", "tests/**/*", "types/**/*"]
 }

@@ -12,15 +12,6 @@ module('Integration | Component | application', function(hooks) {
 
     await render(hbs`{{application}}`);
 
-    assert.equal(this.element.textContent!.trim(), '');
-
-    // Template block usage:
-    await render(hbs`
-      {{#application}}
-        template block text
-      {{/application}}
-    `);
-
-    assert.equal(this.element.textContent!.trim(), 'template block text');
+    assert.ok(this.element.textContent!.trim());
   });
 });
