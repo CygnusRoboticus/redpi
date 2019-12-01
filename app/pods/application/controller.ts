@@ -82,7 +82,7 @@ export default class ApplicationController extends Controller {
         .toArray()
         .find(link => this.isImage(link.url) && !history[link.id]);
       if (usable) {
-        this.model = usable;
+        this.set('model', usable);
         this.setHistoryTime(usable.id);
         this.loadNextImage();
         this.updateProgress(true);
