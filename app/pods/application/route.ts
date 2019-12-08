@@ -6,7 +6,8 @@ export default class ApplicationRoute extends Route {
     debug: { refreshModel: true },
     debounce: { refreshModel: true },
     searchReset: { refreshModel: true },
-    repeatRandom: { refreshModel: true }
+    repeatRandom: { refreshModel: true },
+    missThreshold: { refreshModel: true }
   };
 
   setupController(controller: ApplicationController) {

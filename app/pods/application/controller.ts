@@ -11,21 +11,29 @@ const rand = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
 export default class ApplicationController extends Controller {
-  static queryParams = ['debug', 'debounce', 'searchReset', 'repeatRandom'];
+  static queryParams = [
+    'debug',
+    'debounce',
+    'searchReset',
+    'repeatRandom',
+    'missThreshold'
+  ];
   model: Link | null = null;
   links: Link[] | null = null;
 
   after?: string;
-  count = 25;
+  limit = 100;
   progress = 0;
+  misses = 0;
   progressStyle = htmlSafe('width: 0%');
 
   historyStorageKey = 'history';
 
   debug = 0;
-  debounce = 2;
+  debounce = 10;
   searchReset = 60 * 24;
   repeatRandom = 60 * 24 * 7;
+  missThreshold = 2;
 
   @task({ strategy: TaskStrategy.Restart })
   *loadNextImage() {
@@ -64,7 +72,7 @@ export default class ApplicationController extends Controller {
               () =>
                 this.store.query('link', {
                   sort: 'top',
-                  count: this.count,
+                  limit: this.limit,
                   after: this.after
                 }),
               () => new Error('Failed to retrieve links')
@@ -76,7 +84,7 @@ export default class ApplicationController extends Controller {
           );
     }),
     TE.chain(task => task),
-    TE.map(links => {
+    TE.chain(links => {
       const history = this.getHistory();
       const usable = links
         .toArray()
@@ -84,17 +92,27 @@ export default class ApplicationController extends Controller {
       if (usable) {
         this.set('model', usable);
         this.setHistoryTime(usable.id);
-        this.loadNextImage();
         this.updateProgress(true);
+        this.loadNextImage();
+        return TE.rightIO(() => {});
       } else {
         if (links.length) {
           this.after = links.slice(-1)[0].id;
         } else {
-          this.resetPages();
+          this.misses++;
+          if (this.misses >= this.missThreshold) {
+            this.misses = 0;
+            this.after = undefined;
+            this.clearHistory();
+          }
         }
         this.links = null;
-        TA.delay(1000)(TA.fromIO(() => this.loadImage()))();
+        return TE.left(new Error('No usable'));
       }
+    }),
+    TE.mapLeft(() => {
+      // NOTE: restart follow-up task after a delay
+      TA.delay(1000)(TA.fromIO(() => this.loadImage()))();
     })
   );
 
